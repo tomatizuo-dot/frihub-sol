@@ -1,5 +1,5 @@
---// FriHub Ultimate AI Farm
---// ESP + AI + Route Learning + Visual + Egg Fix + Webhook
+--// FriHub Ultimate AI Egg Macro
+--// Full Fixed Version
 
 local Players = game:GetService("Players")
 local VirtualInputManager = game:GetService("VirtualInputManager")
@@ -59,7 +59,7 @@ sendWebhook(
 --========================
 
 local TARGET_NAMES = {
-	"_egg"
+	"_egg",
 }
 
 local AUTO_FARM = false
@@ -72,12 +72,41 @@ local SAVE_FILE = "FriHub_AI_Memory.json"
 --========================
 
 local Memory = {}
-local Walls = {}
 local PathMemory = {}
-local JumpMemory = {}
 local DangerZones = {}
 
 local CollectedEggs = 0
+
+local function key(pos)
+
+	return
+		math.floor(pos.X / GRID_SIZE)
+		.."|"
+		..
+		math.floor(pos.Z / GRID_SIZE)
+end
+
+local function learnPath(pos)
+
+	local k = key(pos)
+
+	if not PathMemory[k] then
+		PathMemory[k] = 0
+	end
+
+	PathMemory[k] += 1
+end
+
+local function rememberDanger(pos,amount)
+
+	local k = key(pos)
+
+	if not DangerZones[k] then
+		DangerZones[k] = 0
+	end
+
+	DangerZones[k] += amount
+end
 
 --========================
 -- SAVE / LOAD
@@ -88,10 +117,7 @@ local function saveAI()
 	if writefile then
 
 		local data = {
-			Memory = Memory,
-			Walls = Walls,
 			PathMemory = PathMemory,
-			JumpMemory = JumpMemory,
 			DangerZones = DangerZones
 		}
 
@@ -122,15 +148,12 @@ local function loadAI()
 
 			if success and data then
 
-				Memory = data.Memory or {}
-				Walls = data.Walls or {}
 				PathMemory = data.PathMemory or {}
-				JumpMemory = data.JumpMemory or {}
 				DangerZones = data.DangerZones or {}
 
 				sendWebhook(
 					"📂 AI Loaded",
-					"AI memory loaded",
+					"Previous memory loaded",
 					3447003
 				)
 			end
@@ -185,10 +208,10 @@ local stats = Instance.new("TextLabel")
 stats.Size = UDim2.new(1,0,0,30)
 stats.Position = UDim2.new(0,0,0.72,0)
 stats.BackgroundTransparency = 1
+stats.Text = "Eggs: 0"
 stats.TextColor3 = Color3.new(1,1,1)
 stats.Font = Enum.Font.Gotham
 stats.TextSize = 14
-stats.Text = "Eggs: 0"
 stats.Parent = frame
 
 toggle.MouseButton1Click:Connect(function()
@@ -202,12 +225,6 @@ toggle.MouseButton1Click:Connect(function()
 		toggle.BackgroundColor3 =
 			Color3.fromRGB(0,170,80)
 
-		sendWebhook(
-			"🟢 Auto Farm",
-			"Enabled",
-			65280
-		)
-
 	else
 
 		toggle.Text = "AUTO FARM : OFF"
@@ -218,12 +235,6 @@ toggle.MouseButton1Click:Connect(function()
 		humanoid:MoveTo(root.Position)
 
 		saveAI()
-
-		sendWebhook(
-			"🔴 Auto Farm",
-			"Disabled",
-			16711680
-		)
 	end
 end)
 
@@ -290,12 +301,10 @@ local function createESP(obj)
 	end
 
 	local tag = Instance.new("BoolValue")
-tag.Name = "FriESPTag"
+	tag.Name = "FriESPTag"
 	tag.Parent = obj
 
 	local highlight = Instance.new("Highlight")
-
-	highlight.Name = "FriESP"
 
 	highlight.FillColor =
 		Color3.fromRGB(255,255,0)
@@ -342,9 +351,7 @@ tag.Name = "FriESPTag"
 
 	RunService.RenderStepped:Connect(function()
 
-		if not obj.Parent
-		or not part.Parent
-		then
+		if not obj.Parent then
 			highlight:Destroy()
 			bill:Destroy()
 			return
@@ -363,21 +370,12 @@ tag.Name = "FriESPTag"
 	end)
 end
 
---========================
--- ESP SCAN
---========================
+for _,v in pairs(workspace:GetDescendants()) do
 
-local function scanESP()
-
-	for _,v in pairs(workspace:GetDescendants()) do
-
-		if isTarget(v.Name) then
-			createESP(v)
-		end
+	if isTarget(v.Name) then
+		createESP(v)
 	end
 end
-
-scanESP()
 
 workspace.DescendantAdded:Connect(function(v)
 
@@ -389,7 +387,7 @@ workspace.DescendantAdded:Connect(function(v)
 end)
 
 --========================
--- GET CLOSEST EGG
+-- CLOSEST EGG
 --========================
 
 local function getClosestEgg()
@@ -403,9 +401,7 @@ local function getClosestEgg()
 
 			local part = getBasePart(v)
 
-			if part
-			and part:IsDescendantOf(workspace)
-			then
+			if part then
 
 				local dist =
 					(root.Position - part.Position).Magnitude
@@ -509,12 +505,30 @@ local function walkTo(target)
 			return
 		end
 
+		-- 落下検知
+
+		if root.Position.Y < -10 then
+
+			root.CFrame =
+				CFrame.new(0,20,0)
+
+			sendWebhook(
+				"💀 Fall Detected",
+				"Player fell under map",
+				16711680
+			)
+		end
+
 		local dist =
 			(root.Position - target.Position).Magnitude
 
-		if dist <= 12 then
+		-- 到着距離
+
+		if dist <= 5 then
 			break
 		end
+
+		-- スタック検知
 
 		if math.abs(dist - lastDist) < 1 then
 			stuck += 0.05
@@ -523,6 +537,8 @@ local function walkTo(target)
 		end
 
 		lastDist = dist
+
+		-- スタック処理
 
 		if stuck >= 1 then
 
@@ -536,15 +552,15 @@ local function walkTo(target)
 			)
 
 			humanoid:ChangeState(
-	Enum.HumanoidStateType.Jumping
-)
+				Enum.HumanoidStateType.Jumping
+			)
 
-root.Velocity =
-	Vector3.new(
-		root.Velocity.X,
-		55,
-		root.Velocity.Z
-	)
+			root.Velocity =
+				Vector3.new(
+					root.Velocity.X,
+					55,
+					root.Velocity.Z
+				)
 
 			sendWebhook(
 				"⚠️ Stuck",
@@ -555,35 +571,46 @@ root.Velocity =
 			stuck = 0
 		end
 
-		humanoid:MoveTo(target.Position)
-local rayParams = RaycastParams.new()
+		-- 移動位置改善
 
-rayParams.FilterDescendantsInstances = {
-	character
-}
+		local dir =
+			(target.Position - root.Position).Unit
 
-rayParams.FilterType =
-	Enum.RaycastFilterType.Blacklist
+		local movePos =
+			target.Position - dir * 2
 
-local result = workspace:Raycast(
-	root.Position,
-	root.CFrame.LookVector * 4,
-	rayParams
-)
+		humanoid:MoveTo(movePos)
 
-if result then
+		-- 壁ジャンプ
 
-	humanoid:ChangeState(
-		Enum.HumanoidStateType.Jumping
-	)
+		local rayParams = RaycastParams.new()
 
-	root.Velocity =
-		Vector3.new(
-			root.Velocity.X,
-			55,
-			root.Velocity.Z
+		rayParams.FilterDescendantsInstances = {
+			character
+		}
+
+		rayParams.FilterType =
+			Enum.RaycastFilterType.Blacklist
+
+		local result = workspace:Raycast(
+			root.Position,
+			root.CFrame.LookVector * 8,
+			rayParams
 		)
-end
+
+		if result then
+
+			humanoid:ChangeState(
+				Enum.HumanoidStateType.Jumping
+			)
+
+			root.Velocity =
+				Vector3.new(
+					root.Velocity.X,
+					55,
+					root.Velocity.Z
+				)
+		end
 
 		learnPath(root.Position)
 
