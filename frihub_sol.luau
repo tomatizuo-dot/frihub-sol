@@ -535,7 +535,16 @@ local function walkTo(target)
 				10
 			)
 
-			humanoid.Jump = true
+			humanoid:ChangeState(
+	Enum.HumanoidStateType.Jumping
+)
+
+root.Velocity =
+	Vector3.new(
+		root.Velocity.X,
+		55,
+		root.Velocity.Z
+	)
 
 			sendWebhook(
 				"⚠️ Stuck",
@@ -547,6 +556,34 @@ local function walkTo(target)
 		end
 
 		humanoid:MoveTo(target.Position)
+local rayParams = RaycastParams.new()
+
+rayParams.FilterDescendantsInstances = {
+	character
+}
+
+rayParams.FilterType =
+	Enum.RaycastFilterType.Blacklist
+
+local result = workspace:Raycast(
+	root.Position,
+	root.CFrame.LookVector * 4,
+	rayParams
+)
+
+if result then
+
+	humanoid:ChangeState(
+		Enum.HumanoidStateType.Jumping
+	)
+
+	root.Velocity =
+		Vector3.new(
+			root.Velocity.X,
+			55,
+			root.Velocity.Z
+		)
+end
 
 		learnPath(root.Position)
 
