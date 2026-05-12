@@ -394,6 +394,7 @@ end)
 local function getClosestEgg()
 
 	local closest = nil
+	local closestModel = nil
 	local shortest = math.huge
 
 	for _,v in pairs(workspace:GetDescendants()) do
@@ -403,8 +404,8 @@ local function getClosestEgg()
 			local part = getBasePart(v)
 
 			if part
-and not CollectedTargets[v]
-then
+			and not CollectedTargets[v]
+			then
 
 				local dist =
 					(root.Position - part.Position).Magnitude
@@ -413,12 +414,13 @@ then
 
 					shortest = dist
 					closest = part
+					closestModel = v
 				end
 			end
 		end
 	end
 
-	return closest
+	return closest,closestModel
 end
 
 --========================
@@ -450,38 +452,6 @@ local function pressE()
 		.. CollectedEggs
 end
 
-		VirtualInputManager:SendKeyEvent(
-			true,
-			Enum.KeyCode.E,
-			false,
-			game
-		)
-
-		task.wait(0.05)
-
-		VirtualInputManager:SendKeyEvent(
-			false,
-			Enum.KeyCode.E,
-			false,
-			game
-		)
-
-		task.wait(0.1)
-	end
-
-	CollectedEggs += 1
-
-	stats.Text =
-		"Eggs: "
-		.. CollectedEggs
-
-	sendWebhook(
-		"🥚 Egg Collected",
-		"Total Eggs: "
-		.. CollectedEggs,
-		3447003
-	)
-end
 
 --========================
 -- VISUAL
@@ -510,7 +480,7 @@ end
 -- WALK
 --========================
 
-local function walkTo(target)
+local function walkTo(target,targetModel)
 
 	if not target then
 		return
@@ -644,7 +614,6 @@ local function walkTo(target)
 
 	humanoid:MoveTo(root.Position)
 
-local targetModel = target.Parent
 
 CollectedTargets[targetModel] = true
 
@@ -667,11 +636,11 @@ task.spawn(function()
 
 		if AUTO_FARM then
 
-			local egg = getClosestEgg()
+			local egg,model = getClosestEgg()
 
-			if egg then
-				walkTo(egg)
-			end
+if egg then
+	walkTo(egg,model)
+end
 		end
 	end
 end)
