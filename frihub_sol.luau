@@ -74,6 +74,7 @@ local SAVE_FILE = "FriHub_AI_Memory.json"
 local Memory = {}
 local PathMemory = {}
 local DangerZones = {}
+local CollectedTargets = {}
 
 local CollectedEggs = 0
 
@@ -401,7 +402,9 @@ local function getClosestEgg()
 
 			local part = getBasePart(v)
 
-			if part then
+			if part
+and not CollectedTargets[v]
+then
 
 				local dist =
 					(root.Position - part.Position).Magnitude
@@ -424,7 +427,28 @@ end
 
 local function pressE()
 
-	for i = 1,3 do
+	VirtualInputManager:SendKeyEvent(
+		true,
+		Enum.KeyCode.E,
+		false,
+		game
+	)
+
+	task.wait(0.05)
+
+	VirtualInputManager:SendKeyEvent(
+		false,
+		Enum.KeyCode.E,
+		false,
+		game
+	)
+
+	CollectedEggs += 1
+
+	stats.Text =
+		"Eggs: "
+		.. CollectedEggs
+end
 
 		VirtualInputManager:SendKeyEvent(
 			true,
@@ -620,9 +644,15 @@ local function walkTo(target)
 
 	humanoid:MoveTo(root.Position)
 
-	pressE()
+local targetModel = target.Parent
 
-	task.wait(0.5)
+CollectedTargets[targetModel] = true
+
+pressE()
+
+task.wait(1.5)
+
+CollectedTargets[targetModel] = nil
 end
 
 --========================
