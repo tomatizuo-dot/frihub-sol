@@ -1,5 +1,5 @@
 --// FriHub Ultimate AI Farm
---// Full AI + Visual + Webhook
+--// ESP + AI + Route Learning + Visual + Egg Fix + Webhook
 
 local Players = game:GetService("Players")
 local VirtualInputManager = game:GetService("VirtualInputManager")
@@ -19,11 +19,7 @@ local root = character:WaitForChild("HumanoidRootPart")
 
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1503768410247663796/pwwiqIiiTf5ZNUhqW7_rLkKhkk5J4aojFroclLAYzExo-AMisIs55gBxgI57O9nD2D12"
 
-local function sendWebhook(
-	title,
-	description,
-	color
-)
+local function sendWebhook(title,description,color)
 
 	if WEBHOOK_URL == "" then
 		return
@@ -63,7 +59,8 @@ sendWebhook(
 --========================
 
 local TARGET_NAMES = {
-	"_egg"
+	"_egg",
+	"egg"
 }
 
 local AUTO_FARM = false
@@ -80,130 +77,8 @@ local Walls = {}
 local PathMemory = {}
 local JumpMemory = {}
 local DangerZones = {}
-local RouteHistory = {}
 
 local CollectedEggs = 0
-
---========================
--- VISUAL
---========================
-
-local VisualFolder =
-	Instance.new("Folder")
-
-VisualFolder.Name = "FriHub_AI_Visual"
-
-VisualFolder.Parent = workspace
-
-local RouteFolder =
-	Instance.new("Folder")
-
-RouteFolder.Name = "FriHub_Routes"
-
-RouteFolder.Parent = workspace
-
-local LastPoint = nil
-
---========================
--- GRID
---========================
-
-local function key(pos)
-
-	return
-		math.floor(pos.X / GRID_SIZE)
-		.."|"
-		..
-		math.floor(pos.Z / GRID_SIZE)
-end
-
---========================
--- MEMORY
---========================
-
-local function addScore(pos,value)
-
-	local k = key(pos)
-
-	if not Memory[k] then
-		Memory[k] = 0
-	end
-
-	Memory[k] += value
-end
-
-local function getScore(pos)
-
-	return Memory[key(pos)] or 0
-end
-
---========================
--- WALLS
---========================
-
-local function rememberWall(pos)
-
-	Walls[key(pos)] = true
-end
-
-local function isWall(pos)
-
-	return Walls[key(pos)] == true
-end
-
---========================
--- ROUTES
---========================
-
-local function learnPath(pos)
-
-	local k = key(pos)
-
-	if not PathMemory[k] then
-		PathMemory[k] = 0
-	end
-
-	PathMemory[k] += 1
-end
-
-local function getPathScore(pos)
-
-	return PathMemory[key(pos)] or 0
-end
-
---========================
--- JUMP MEMORY
---========================
-
-local function rememberJump(pos)
-
-	JumpMemory[key(pos)] = true
-end
-
-local function shouldJump(pos)
-
-	return JumpMemory[key(pos)] == true
-end
-
---========================
--- DANGER
---========================
-
-local function rememberDanger(pos,amount)
-
-	local k = key(pos)
-
-	if not DangerZones[k] then
-		DangerZones[k] = 0
-	end
-
-	DangerZones[k] += amount
-end
-
-local function getDanger(pos)
-
-	return DangerZones[key(pos)] or 0
-end
 
 --========================
 -- SAVE / LOAD
@@ -256,7 +131,7 @@ local function loadAI()
 
 				sendWebhook(
 					"📂 AI Loaded",
-					"Previous AI loaded",
+					"AI memory loaded",
 					3447003
 				)
 			end
@@ -265,102 +140,6 @@ local function loadAI()
 end
 
 loadAI()
-
---========================
--- VISUAL DRAW
---========================
-
-local function drawPoint(pos,color,size,time)
-
-	local p = Instance.new("Part")
-
-	p.Anchored = true
-	p.CanCollide = false
-	p.Material = Enum.Material.Neon
-
-	p.Size = Vector3.new(size,size,size)
-
-	p.Color = color
-
-	p.Position = pos + Vector3.new(0,0.2,0)
-
-	p.Parent = VisualFolder
-
-	Debris:AddItem(p,time or 15)
-end
-
-local function drawDanger(pos)
-
-	drawPoint(
-		pos,
-		Color3.fromRGB(255,0,0),
-		1.2,
-		20
-	)
-end
-
-local function drawSafe(pos)
-
-	drawPoint(
-		pos,
-		Color3.fromRGB(0,255,0),
-		0.5,
-		10
-	)
-end
-
-local function drawJump(pos)
-
-	drawPoint(
-		pos,
-		Color3.fromRGB(255,255,0),
-		0.8,
-		15
-	)
-end
-
---========================
--- ROUTE LINE
---========================
-
-local function drawRoute(movePos)
-
-	if LastPoint then
-
-		local dist =
-			(movePos - LastPoint).Magnitude
-
-		local line =
-			Instance.new("Part")
-
-		line.Anchored = true
-		line.CanCollide = false
-		line.Material = Enum.Material.Neon
-
-		line.Size =
-			Vector3.new(
-				0.25,
-				0.25,
-				dist
-			)
-
-		line.CFrame =
-			CFrame.lookAt(
-				LastPoint,
-				movePos
-			)
-			* CFrame.new(0,0,-dist/2)
-
-		line.Color =
-			Color3.fromRGB(0,255,0)
-
-		line.Parent = RouteFolder
-
-		Debris:AddItem(line,20)
-	end
-
-	LastPoint = movePos
-end
 
 --========================
 -- GUI
@@ -385,7 +164,7 @@ Instance.new("UICorner",frame)
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1,0,0,35)
 title.BackgroundTransparency = 1
-title.Text = "FriHub Ultimate AI"
+title.Text = "FriHub egg macro"
 title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 18
@@ -424,6 +203,12 @@ toggle.MouseButton1Click:Connect(function()
 		toggle.BackgroundColor3 =
 			Color3.fromRGB(0,170,80)
 
+		sendWebhook(
+			"🟢 Auto Farm",
+			"Enabled",
+			65280
+		)
+
 	else
 
 		toggle.Text = "AUTO FARM : OFF"
@@ -434,6 +219,12 @@ toggle.MouseButton1Click:Connect(function()
 		humanoid:MoveTo(root.Position)
 
 		saveAI()
+
+		sendWebhook(
+			"🔴 Auto Farm",
+			"Disabled",
+			16711680
+		)
 	end
 end)
 
@@ -466,6 +257,7 @@ local function getBasePart(obj)
 	end
 
 	if obj:IsA("Model") then
+
 		return obj.PrimaryPart
 			or obj:FindFirstChildWhichIsA("BasePart")
 	end
@@ -479,7 +271,126 @@ local function getBasePart(obj)
 end
 
 --========================
--- CLOSEST EGG
+-- ESP
+--========================
+
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "FriHub_ESP"
+ESPFolder.Parent = game.CoreGui
+
+local function createESP(obj)
+
+	if obj:FindFirstChild("FriESPTag") then
+		return
+	end
+
+	local part = getBasePart(obj)
+
+	if not part then
+		return
+	end
+
+	local tag = Instance.new("BoolValue")
+tag.Name = "FriESPTag"
+	tag.Parent = obj
+
+	local highlight = Instance.new("Highlight")
+
+	highlight.Name = "FriESP"
+
+	highlight.FillColor =
+		Color3.fromRGB(255,255,0)
+
+	highlight.OutlineColor =
+		Color3.fromRGB(255,255,255)
+
+	highlight.FillTransparency = 0.35
+
+	highlight.DepthMode =
+		Enum.HighlightDepthMode.AlwaysOnTop
+
+	highlight.Adornee = obj
+
+	highlight.Parent = ESPFolder
+
+	local bill = Instance.new("BillboardGui")
+
+	bill.Size = UDim2.new(0,120,0,40)
+
+	bill.AlwaysOnTop = true
+
+	bill.StudsOffset = Vector3.new(0,3,0)
+
+	bill.Adornee = part
+
+	bill.Parent = ESPFolder
+
+	local txt = Instance.new("TextLabel")
+
+	txt.Size = UDim2.new(1,0,1,0)
+
+	txt.BackgroundTransparency = 1
+
+	txt.TextColor3 = Color3.new(1,1,1)
+
+	txt.TextStrokeTransparency = 0
+
+	txt.Font = Enum.Font.GothamBold
+
+	txt.TextScaled = true
+
+	txt.Parent = bill
+
+	RunService.RenderStepped:Connect(function()
+
+		if not obj.Parent
+		or not part.Parent
+		then
+			highlight:Destroy()
+			bill:Destroy()
+			return
+		end
+
+		local dist =
+			math.floor(
+				(root.Position - part.Position).Magnitude
+			)
+
+		txt.Text =
+			obj.Name
+			.. "\n"
+			.. dist
+			.. "m"
+	end)
+end
+
+--========================
+-- ESP SCAN
+--========================
+
+local function scanESP()
+
+	for _,v in pairs(workspace:GetDescendants()) do
+
+		if isTarget(v.Name) then
+			createESP(v)
+		end
+	end
+end
+
+scanESP()
+
+workspace.DescendantAdded:Connect(function(v)
+
+	task.wait(0.2)
+
+	if isTarget(v.Name) then
+		createESP(v)
+	end
+end)
+
+--========================
+-- GET CLOSEST EGG
 --========================
 
 local function getClosestEgg()
@@ -493,7 +404,9 @@ local function getClosestEgg()
 
 			local part = getBasePart(v)
 
-			if part then
+			if part
+			and part:IsDescendantOf(workspace)
+			then
 
 				local dist =
 					(root.Position - part.Position).Magnitude
@@ -516,21 +429,26 @@ end
 
 local function pressE()
 
-	VirtualInputManager:SendKeyEvent(
-		true,
-		Enum.KeyCode.E,
-		false,
-		game
-	)
+	for i = 1,3 do
 
-	task.wait(0.05)
+		VirtualInputManager:SendKeyEvent(
+			true,
+			Enum.KeyCode.E,
+			false,
+			game
+		)
 
-	VirtualInputManager:SendKeyEvent(
-		false,
-		Enum.KeyCode.E,
-		false,
-		game
-	)
+		task.wait(0.05)
+
+		VirtualInputManager:SendKeyEvent(
+			false,
+			Enum.KeyCode.E,
+			false,
+			game
+		)
+
+		task.wait(0.1)
+	end
 
 	CollectedEggs += 1
 
@@ -545,3 +463,139 @@ local function pressE()
 		3447003
 	)
 end
+
+--========================
+-- VISUAL
+--========================
+
+local function drawPoint(pos,color,size,time)
+
+	local p = Instance.new("Part")
+
+	p.Anchored = true
+	p.CanCollide = false
+	p.Material = Enum.Material.Neon
+
+	p.Size = Vector3.new(size,size,size)
+
+	p.Color = color
+
+	p.Position = pos + Vector3.new(0,0.2,0)
+
+	p.Parent = workspace
+
+	Debris:AddItem(p,time or 10)
+end
+
+--========================
+-- WALK
+--========================
+
+local function walkTo(target)
+
+	if not target then
+		return
+	end
+
+	local stuck = 0
+	local lastDist = math.huge
+
+	repeat
+
+		if not AUTO_FARM then
+			return
+		end
+
+		if not target.Parent then
+			return
+		end
+
+		local dist =
+			(root.Position - target.Position).Magnitude
+
+		if dist <= 12 then
+			break
+		end
+
+		if math.abs(dist - lastDist) < 1 then
+			stuck += 0.05
+		else
+			stuck = 0
+		end
+
+		lastDist = dist
+
+		if stuck >= 1 then
+
+			rememberDanger(root.Position,5)
+
+			drawPoint(
+				root.Position,
+				Color3.fromRGB(255,0,0),
+				1,
+				10
+			)
+
+			humanoid.Jump = true
+
+			sendWebhook(
+				"⚠️ Stuck",
+				"AI stuck detected",
+				16711680
+			)
+
+			stuck = 0
+		end
+
+		humanoid:MoveTo(target.Position)
+
+		learnPath(root.Position)
+
+		task.wait(0.05)
+
+	until false
+
+	humanoid:MoveTo(root.Position)
+
+	pressE()
+
+	task.wait(0.5)
+end
+
+--========================
+-- LOOP
+--========================
+
+task.spawn(function()
+
+	while true do
+
+		task.wait(0.2)
+
+		if AUTO_FARM then
+
+			local egg = getClosestEgg()
+
+			if egg then
+				walkTo(egg)
+			end
+		end
+	end
+end)
+
+--========================
+-- CHARACTER UPDATE
+--========================
+
+player.CharacterAdded:Connect(function(char)
+
+	character = char
+
+	humanoid =
+		character:WaitForChild("Humanoid")
+
+	root =
+		character:WaitForChild(
+			"HumanoidRootPart"
+		)
+end)
