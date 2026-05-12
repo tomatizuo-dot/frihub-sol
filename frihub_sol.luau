@@ -450,6 +450,7 @@ local function pressE()
 	stats.Text =
 		"Eggs: "
 		.. CollectedEggs
+task.wait(5)
 end
 
 
