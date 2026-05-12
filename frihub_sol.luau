@@ -59,8 +59,7 @@ sendWebhook(
 --========================
 
 local TARGET_NAMES = {
-	"_egg",
-	"egg"
+	"_egg"
 }
 
 local AUTO_FARM = false
