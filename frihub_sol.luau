@@ -24,9 +24,11 @@ local function sendWebhook(title,description,color)
 	if WEBHOOK_URL == "" then
 		return
 	end
+
 	if not request then
 		return
 	end
+
 	request({
 		Url = WEBHOOK_URL,
 		Method = "POST",
@@ -88,18 +90,22 @@ end
 local function learnPath(pos)
 
 	local k = key(pos)
+
 	if not PathMemory[k] then
 		PathMemory[k] = 0
 	end
+
 	PathMemory[k] += 1
 end
 
 local function rememberDanger(pos,amount)
 
 	local k = key(pos)
+
 	if not DangerZones[k] then
 		DangerZones[k] = 0
 	end
+
 	DangerZones[k] += amount
 end
 
@@ -110,14 +116,17 @@ end
 local function saveAI()
 
 	if writefile then
+
 		local data = {
 			PathMemory = PathMemory,
 			DangerZones = DangerZones
 		}
+
 		writefile(
 			SAVE_FILE,
 			HttpService:JSONEncode(data)
 		)
+
 		sendWebhook(
 			"💾 AI Saved",
 			"Learning data saved",
@@ -129,14 +138,20 @@ end
 local function loadAI()
 
 	if readfile and isfile then
+
 		if isfile(SAVE_FILE) then
+
 			local raw = readfile(SAVE_FILE)
+
 			local success,data = pcall(function()
 				return HttpService:JSONDecode(raw)
 			end)
+
 			if success and data then
+
 				PathMemory = data.PathMemory or {}
 				DangerZones = data.DangerZones or {}
+
 				sendWebhook(
 					"📂 AI Loaded",
 					"Previous memory loaded",
@@ -203,15 +218,23 @@ stats.Parent = frame
 toggle.MouseButton1Click:Connect(function()
 
 	AUTO_FARM = not AUTO_FARM
+
 	if AUTO_FARM then
+
 		toggle.Text = "AUTO FARM : ON"
+
 		toggle.BackgroundColor3 =
 			Color3.fromRGB(0,170,80)
+
 	else
+
 		toggle.Text = "AUTO FARM : OFF"
+
 		toggle.BackgroundColor3 =
 			Color3.fromRGB(40,40,40)
+
 		humanoid:MoveTo(root.Position)
+
 		saveAI()
 	end
 end)
@@ -223,11 +246,14 @@ end)
 local function isTarget(name)
 
 	local lower = string.lower(name)
+
 	for _,v in pairs(TARGET_NAMES) do
+
 		if string.find(lower,string.lower(v)) then
 			return true
 		end
 	end
+
 	return false
 end
 
@@ -240,11 +266,15 @@ local function getBasePart(obj)
 	if obj:IsA("BasePart") then
 		return obj
 	end
+
 	if obj:IsA("Model") then
+
 		return obj.PrimaryPart
 			or obj:FindFirstChildWhichIsA("BasePart")
 	end
+
 	for _,v in pairs(obj:GetDescendants()) do
+
 		if v:IsA("BasePart") then
 			return v
 		end
@@ -264,47 +294,75 @@ local function createESP(obj)
 	if obj:FindFirstChild("FriESPTag") then
 		return
 	end
+
 	local part = getBasePart(obj)
+
 	if not part then
 		return
 	end
+
 	local tag = Instance.new("BoolValue")
 	tag.Name = "FriESPTag"
 	tag.Parent = obj
+
 	local highlight = Instance.new("Highlight")
+
 	highlight.FillColor =
 		Color3.fromRGB(255,255,0)
+
 	highlight.OutlineColor =
 		Color3.fromRGB(255,255,255)
+
 	highlight.FillTransparency = 0.35
+
 	highlight.DepthMode =
 		Enum.HighlightDepthMode.AlwaysOnTop
+
 	highlight.Adornee = obj
+
 	highlight.Parent = ESPFolder
+
 	local bill = Instance.new("BillboardGui")
+
 	bill.Size = UDim2.new(0,120,0,40)
+
 	bill.AlwaysOnTop = true
+
 	bill.StudsOffset = Vector3.new(0,3,0)
+
 	bill.Adornee = part
+
 	bill.Parent = ESPFolder
+
 	local txt = Instance.new("TextLabel")
+
 	txt.Size = UDim2.new(1,0,1,0)
+
 	txt.BackgroundTransparency = 1
+
 	txt.TextColor3 = Color3.new(1,1,1)
+
 	txt.TextStrokeTransparency = 0
+
 	txt.Font = Enum.Font.GothamBold
+
 	txt.TextScaled = true
+
 	txt.Parent = bill
+
 	RunService.RenderStepped:Connect(function()
+
 		if not obj.Parent then
 			highlight:Destroy()
 			bill:Destroy()
 			return
 		end
+
 		local dist =
 			math.floor(
 				(root.Position - part.Position).Magnitude
 			)
+
 		txt.Text =
 			obj.Name
 			.. "\n"
@@ -323,6 +381,7 @@ end
 workspace.DescendantAdded:Connect(function(v)
 
 	task.wait(0.2)
+
 	if isTarget(v.Name) then
 		createESP(v)
 	end
@@ -337,15 +396,22 @@ local function getClosestEgg()
 	local closest = nil
 	local closestModel = nil
 	local shortest = math.huge
+
 	for _,v in pairs(workspace:GetDescendants()) do
+
 		if isTarget(v.Name) then
+
 			local part = getBasePart(v)
+
 			if part
 			and not CollectedTargets[v]
 			then
+
 				local dist =
 					(root.Position - part.Position).Magnitude
+
 				if dist < shortest then
+
 					shortest = dist
 					closest = part
 					closestModel = v
@@ -353,6 +419,7 @@ local function getClosestEgg()
 			end
 		end
 	end
+
 	return closest,closestModel
 end
 
@@ -368,19 +435,24 @@ local function pressE()
 		false,
 		game
 	)
+
 	task.wait(0.05)
+
 	VirtualInputManager:SendKeyEvent(
 		false,
 		Enum.KeyCode.E,
 		false,
 		game
 	)
+
 	CollectedEggs += 1
+
 	stats.Text =
 		"Eggs: "
 		.. CollectedEggs
 task.wait(5)
 end
+
 
 --========================
 -- VISUAL
@@ -389,13 +461,19 @@ end
 local function drawPoint(pos,color,size,time)
 
 	local p = Instance.new("Part")
+
 	p.Anchored = true
 	p.CanCollide = false
 	p.Material = Enum.Material.Neon
+
 	p.Size = Vector3.new(size,size,size)
+
 	p.Color = color
+
 	p.Position = pos + Vector3.new(0,0.2,0)
+
 	p.Parent = workspace
+
 	Debris:AddItem(p,time or 10)
 end
 
@@ -408,85 +486,119 @@ local function walkTo(target,targetModel)
 	if not target then
 		return
 	end
+
 	local stuck = 0
 	local lastDist = math.huge
+
 	repeat
+
 		if not AUTO_FARM then
 			return
 		end
+
 		if not target.Parent then
 			return
 		end
+
 		-- 落下検知
+
 		if root.Position.Y < -10 then
+
 			root.CFrame =
 				CFrame.new(0,20,0)
+
 			sendWebhook(
 				"💀 Fall Detected",
 				"Player fell under map",
 				16711680
 			)
 		end
+
 		local dist =
 			(root.Position - target.Position).Magnitude
+
 		-- 到着距離
+
 		if dist <= 5 then
 			break
 		end
+
 		-- スタック検知
+
 		if math.abs(dist - lastDist) < 1 then
 			stuck += 0.05
 		else
 			stuck = 0
 		end
+
 		lastDist = dist
+
 		-- スタック処理
+
 		if stuck >= 1 then
+
 			rememberDanger(root.Position,5)
+
 			drawPoint(
 				root.Position,
 				Color3.fromRGB(255,0,0),
 				1,
 				10
 			)
+
 			humanoid:ChangeState(
 				Enum.HumanoidStateType.Jumping
 			)
+
 			root.Velocity =
 				Vector3.new(
 					root.Velocity.X,
 					55,
 					root.Velocity.Z
 				)
+
 			sendWebhook(
 				"⚠️ Stuck",
 				"AI stuck detected",
 				16711680
 			)
+
 			stuck = 0
 		end
+
 		-- 移動位置改善
+
 		local dir =
 			(target.Position - root.Position).Unit
+
 		local movePos =
 			target.Position - dir * 2
+
 		humanoid:MoveTo(movePos)
+
 		-- 壁ジャンプ
+
 		local rayParams = RaycastParams.new()
+
 		rayParams.FilterDescendantsInstances = {
 			character
 		}
+
 		rayParams.FilterType =
 			Enum.RaycastFilterType.Blacklist
+
 		local result = workspace:Raycast(
 			root.Position,
 			root.CFrame.LookVector * 8,
 			rayParams
 		)
+
 		if result then
+
 			humanoid:ChangeState(
 				Enum.HumanoidStateType.Jumping
 			)
+
 			root.Velocity =
 				Vector3.new(
 					root.Velocity.X,
@@ -494,10 +606,15 @@ local function walkTo(target,targetModel)
 					root.Velocity.Z
 				)
 		end
+
 		learnPath(root.Position)
+
 		task.wait(0.05)
+
 	until false
+
 	humanoid:MoveTo(root.Position)
+
 
 CollectedTargets[targetModel] = true
 
@@ -515,8 +632,11 @@ end
 task.spawn(function()
 
 	while true do
+
 		task.wait(0.2)
+
 		if AUTO_FARM then
+
 			local egg,model = getClosestEgg()
 
 if egg then
@@ -533,12 +653,12 @@ end)
 player.CharacterAdded:Connect(function(char)
 
 	character = char
+
 	humanoid =
 		character:WaitForChild("Humanoid")
+
 	root =
 		character:WaitForChild(
 			"HumanoidRootPart"
 		)
 end)
-
-これに当てはめてー
