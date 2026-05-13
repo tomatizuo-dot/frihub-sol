@@ -79,12 +79,7 @@ local CollectedTargets = {}
 local CollectedEggs = 0
 
 local function key(pos)
-
-	return
-		math.floor(pos.X / GRID_SIZE)
-		.."|"
-		..
-		math.floor(pos.Z / GRID_SIZE)
+	return math.floor(pos.X / GRID_SIZE) .. "|" .. math.floor(pos.Z / GRID_SIZE)
 end
 
 local function learnPath(pos)
@@ -282,6 +277,44 @@ local function getBasePart(obj)
 end
 
 --========================
+-- SAFE MOVE (追加ここ)
+--========================
+
+local function isGroundAhead(fromPos, direction)
+	local origin = fromPos + Vector3.new(0, 3, 0)
+
+	local castDir = direction.Unit * 6
+
+	local params = RaycastParams.new()
+	params.FilterDescendantsInstances = {character}
+	params.FilterType = Enum.RaycastFilterType.Blacklist
+
+	-- ① 前方チェック（壁）
+	local front = workspace:Raycast(origin, castDir, params)
+
+	if not front then
+		return false
+	end
+
+	-- ② 足元チェック（穴）
+	local down = workspace:Raycast(
+		origin + castDir,
+		Vector3.new(0, -20, 0),
+		params
+	)
+
+	if not down then
+		return false
+	end
+
+	-- ③ 高低差チェック（落差防止）
+	if (down.Position.Y < fromPos.Y - 8) then
+		return false
+	end
+
+	return true
+end
+--========================
 -- ESP
 --========================
 
@@ -350,25 +383,7 @@ local function createESP(obj)
 
 	txt.Parent = bill
 
-	RunService.RenderStepped:Connect(function()
 
-		if not obj.Parent then
-			highlight:Destroy()
-			bill:Destroy()
-			return
-		end
-
-		local dist =
-			math.floor(
-				(root.Position - part.Position).Magnitude
-			)
-
-		txt.Text =
-			obj.Name
-			.. "\n"
-			.. dist
-			.. "m"
-	end)
 end
 
 for _,v in pairs(workspace:GetDescendants()) do
@@ -377,7 +392,33 @@ for _,v in pairs(workspace:GetDescendants()) do
 		createESP(v)
 	end
 end
+--========================
+-- ESP UPDATE LOOP（これ1個だけ）
+--========================
 
+RunService.RenderStepped:Connect(function()
+
+    for _, obj in pairs(workspace:GetDescendants()) do
+
+        if obj:FindFirstChild("FriESPTag") then
+
+            local part = obj:FindFirstChildWhichIsA("BasePart")
+            if part then
+
+                local dist = math.floor((root.Position - part.Position).Magnitude)
+
+                local bill = obj:FindFirstChildWhichIsA("BillboardGui", true)
+                if bill then
+
+                    local txt = bill:FindFirstChildWhichIsA("TextLabel", true)
+                    if txt then
+                        txt.Text = obj.Name .. "\n" .. dist .. "m"
+                    end
+                end
+            end
+        end
+    end
+end)
 workspace.DescendantAdded:Connect(function(v)
 
 	task.wait(0.2)
@@ -568,13 +609,53 @@ local function walkTo(target,targetModel)
 
 		-- 移動位置改善
 
-		local dir =
-			(target.Position - root.Position).Unit
+-- 移動位置改善（横回避版）
 
-		local movePos =
-			target.Position - dir * 2
+local toTarget = target.Position - root.Position
+toTarget = Vector3.new(toTarget.X, 0, toTarget.Z)
 
-		humanoid:MoveTo(movePos)
+-- 方向がゼロになるバグ防止
+if toTarget.Magnitude < 0.5 then
+    return
+end
+
+local dir = toTarget.Unit
+
+-- 前方が危険なら横に逃げる
+-- 安定横回避（方向固定版）
+if _G.lastSafeDir == nil then
+    _G.lastSafeDir = dir
+end
+
+local function getSafeDir(baseDir)
+
+    local right = Vector3.new(baseDir.Z, 0, -baseDir.X)
+    local left = -right
+
+    -- まず前回の方向を優先（ブレ防止）
+    if isGroundAhead(root.Position, _G.lastSafeDir) then
+        return _G.lastSafeDir
+    end
+
+    -- 次に右
+    if isGroundAhead(root.Position, right) then
+        return right
+    end
+
+    -- 次に左
+    if isGroundAhead(root.Position, left) then
+        return left
+    end
+
+    -- 最悪後退
+    return -dir
+end
+
+dir = getSafeDir(dir)
+_G.lastSafeDir = dir
+
+local movePos = root.Position + dir * 6
+humanoid:MoveTo(movePos)
 
 		-- 壁ジャンプ
 
@@ -587,11 +668,14 @@ local function walkTo(target,targetModel)
 		rayParams.FilterType =
 			Enum.RaycastFilterType.Blacklist
 
-		local result = workspace:Raycast(
-			root.Position,
-			root.CFrame.LookVector * 8,
-			rayParams
-		)
+local result = workspace:Raycast(
+
+    root.Position,
+
+    root.CFrame.LookVector * 8,
+
+    rayParams
+)
 
 		if result then
 
@@ -609,7 +693,7 @@ local function walkTo(target,targetModel)
 
 		learnPath(root.Position)
 
-		task.wait(0.05)
+		task.wait(0.1)
 
 	until false
 
