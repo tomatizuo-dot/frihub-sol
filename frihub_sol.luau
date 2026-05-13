@@ -632,36 +632,28 @@ local function getSafeDir(baseDir)
     local right = Vector3.new(baseDir.Z, 0, -baseDir.X)
     local left = -right
 
-    -- まず前回の方向を優先（ブレ防止）
-
-    -- 次に右
-local function getSafeDir(baseDir)
-
-    local right = Vector3.new(baseDir.Z, 0, -baseDir.X)
-    local left = -right
-
-    if isGroundAhead(root.Position, baseDir) then
-        return baseDir
+    -- ★基本は目的地方向を優先（ここが重要）
+    local function safe(dir)
+        if isGroundAhead(root.Position, dir) then
+            return dir
+        end
+        return nil
     end
 
-    if isGroundAhead(root.Position, right) then
-        return right
-    end
+    -- ① まず目的地方向
+    local d = safe(baseDir)
+    if d then return d end
 
-    if isGroundAhead(root.Position, left) then
-        return left
-    end
+    -- ② 次に右
+    d = safe(right)
+    if d then return d end
 
-    return baseDir -- 最悪でも逆走しない
-end
+    -- ③ 次に左
+    d = safe(left)
+    if d then return d end
 
-    -- 次に左
-    if isGroundAhead(root.Position, left) then
-        return left
-    end
-
-    -- 最悪後退
-    return -dir
+    -- ④ 最後は強制で目的地
+    return baseDir
 end
 
 dir = getSafeDir(dir)
